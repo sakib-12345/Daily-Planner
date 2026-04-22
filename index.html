@@ -216,8 +216,13 @@
             let duration = endY - startY;
             if (duration < 0) duration += 1440;
 
-            totalMins += duration;
-            if(t.done) doneMins += duration;
+            const color = t.color.toLowerCase();
+
+            // ✅ ignore green + white
+            if (color !== '#10b981' && color !== '#ffffff') {
+                totalMins += duration;
+                if(t.done) doneMins += duration;
+            }
 
             const el = document.createElement('div');
             el.className = `task ${t.done ? 'done' : ''}`;

@@ -216,13 +216,24 @@
             let duration = endY - startY;
             if (duration < 0) duration += 1440;
 
-            const color = t.color.toLowerCase();
+            const hex = t.color.replace('#','');
 
-            // ✅ ignore green + white
-            if (color !== '#10b981' && color !== '#ffffff') {
-                totalMins += duration;
-                if(t.done) doneMins += duration;
-            }
+// convert hex → RGB
+const r = parseInt(hex.substring(0,2), 16);
+const g = parseInt(hex.substring(2,4), 16);
+const b = parseInt(hex.substring(4,6), 16);
+
+// detect green (G dominant)
+const isGreen = g > r && g > b;
+
+// detect white
+const isWhite = r > 240 && g > 240 && b > 240;
+
+// 🚫 skip green + white
+if (!isGreen && !isWhite) {
+    totalMins += duration;
+    if(t.done) doneMins += duration;
+}
 
             const el = document.createElement('div');
             el.className = `task ${t.done ? 'done' : ''}`;

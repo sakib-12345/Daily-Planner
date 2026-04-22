@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Shift Timeline</title>
+    <link rel="apple-touch-icon" href="logo.png?v=1">
+    <link href="https://googleapis.com" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #161616;
+            --border: #262626;
+            --text: #ffffff;
+            --text-dim: #888;
+            --red: #ff4d4d;
+            --accent: #3b82f6;
+            --green: #10b981;
+        }
+
+        * { box-sizing: border-box; outline: none; }
+        body { 
+            margin: 0; 
+            font-family: 'Inter', sans-serif; 
+            background: var(--bg); 
+            color: var(--text);
+            scroll-behavior: smooth;
+        }
+
+        .header-bar {
+            position: sticky;
+            top: 0;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 16px 20px;
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+
+        /* --- Summary Bar --- */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .summary-item { text-align: center; }
+        .summary-label { font-size: 9px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; margin-bottom: 2px; }
+        .summary-value { font-size: 13px; font-weight: 700; color: var(--accent); }
+        .summary-value.complete { color: var(--green); }
+
+        .status-chip { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .status-work { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .status-sleep { background: rgba(129, 140, 248, 0.1); color: #818cf8; }
+
+        .input-card { background: var(--surface); margin: 16px; padding: 16px; border-radius: 16px; border: 1px solid var(--border); }
+        .input-group { display: flex; flex-direction: column; gap: 12px; }
+        input[type="text"] { background: #1f1f1f; border: 1px solid var(--border); color: white; padding: 12px; border-radius: 10px; }
+
+        .row { display: flex; gap: 10px; align-items: center; }
+        .row input[type="time"] { background: #1f1f1f; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 8px; flex: 1; }
+
+        input[type="color"] { -webkit-appearance: none; width: 35px; height: 35px; cursor: pointer; background: none; border: none; }
+        input[type="color"]::-webkit-color-swatch { border-radius: 50%; border: 2px solid var(--border); }
+
+        button.add-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+
+        .timeline-container { position: relative; padding: 20px 0; margin-left: 65px; }
+        .timeline-grid { position: relative; height: 1440px; border-left: 1px solid var(--border); }
+
+        .sleep-zone { position: absolute; left: 0; right: 0; background: linear-gradient(to bottom, rgba(30, 27, 75, 0.3), transparent); border-left: 2px solid #4338ca; pointer-events: none; }
+
+        .hour-mark { position: absolute; left: -60px; width: 55px; text-align: right; font-size: 11px; color: var(--text-dim); transform: translateY(-50%); }
+        .grid-line { position: absolute; left: 0; right: 20px; height: 1px; background: var(--border); opacity: 0.3; }
+        .now-indicator { position: absolute; left: 0; right: 0; height: 2px; background: var(--red); z-index: 50; box-shadow: 0 0 10px var(--red); }
+
+        .task { position: absolute; left: 15px; right: 20px; border-radius: 12px; padding: 10px; display: flex; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); z-index: 10; overflow: hidden; }
+        .task.done { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
+        .task-info b { display: block; font-size: 13px; }
+        .task-info span { font-size: 10px; opacity: 0.7; }
+        .duration-tag { background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px; margin-left: 4px; font-size: 9px; font-style: normal; }
+
+        .icon-btn { background: rgba(0,0,0,0.3); border: none; color: white; padding: 4px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="header-bar">
+        <div class="header-top">
+            <div>
+                <h1 id="clock" style="margin:0; font-size: 22px;">00:00</h1>
+                <div id="status"></div>
+            </div>
+            <div style="text-align: right">
+                <div style="font-size: 11px; font-weight:700">1:30 PM START</div>
+                <div style="font-size: 10px; color: var(--text-dim)">Shift Cycle</div>
+            </div>
+        </div>
+        
+        <div class="summary-bar">
+            <div class="summary-item">
+                <div class="summary-label">Total Shift</div>
+                <div class="summary-value" id="statTotal">0h 0m</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Completed</div>
+                <div class="summary-value complete" id="statDone">0h 0m</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Remaining</div>
+                <div class="summary-value" id="statLeft" style="color:var(--text)">0h 0m</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-card">
+        <div class="input-group">
+            <input type="text" id="taskName" placeholder="Task description...">
+            <div class="row">
+                <input type="time" id="startTime" value="13:30">
+                <input type="time" id="endTime" value="15:30">
+                <input type="color" id="taskColor" value="#3b82f6">
+            </div>
+            <button class="add-btn" onclick="addTask()">Add Task</button>
+        </div>
+    </div>
+
+    <div class="timeline-container">
+        <div class="timeline-grid" id="grid"></div>
+    </div>
+   <p style="text-align:center; font-size:14px; color:gray;">© 2026 Sakib Hossain Tahmid. All rights reserved.</p>
+</div>
+
+<script>
+    const SHIFT_START_HOUR = 13.5; 
+    let tasks = JSON.parse(localStorage.getItem('shift-tasks')) || [];
+
+    function save() { localStorage.setItem('shift-tasks', JSON.stringify(tasks)); }
+
+    function getRelativeY(timeStr) {
+        const [h, m] = timeStr.split(':').map(Number);
+        let totalMins = h * 60 + m;
+        let startMins = SHIFT_START_HOUR * 60;
+        let diff = totalMins - startMins;
+        if (diff < 0) diff += 1440;
+        return diff;
+    }
+
+    function formatDuration(totalMins) {
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        return `${h}h ${m}m`;
+    }
+
+    function render() {
+        const grid = document.getElementById('grid');
+        const status = document.getElementById('status');
+        grid.innerHTML = '';
+
+        let totalMins = 0;
+        let doneMins = 0;
+
+        // Draw Sleep Zone
+        const sleepStart = getRelativeY("06:00");
+        const sleepZone = document.createElement('div');
+        sleepZone.className = 'sleep-zone';
+        sleepZone.style.top = sleepStart + 'px';
+        sleepZone.style.height = (1440 - sleepStart) + 'px';
+        grid.appendChild(sleepZone);
+
+        // Hour Marks
+        for (let i = 0; i < 24; i++) {
+            let currentHour = (SHIFT_START_HOUR + i) % 24;
+            let displayHour = Math.floor(currentHour);
+            let displayMin = (currentHour % 1 === 0) ? "00" : "30";
+            let ampm = displayHour >= 12 ? 'PM' : 'AM';
+            let hour12 = displayHour % 12 || 12;
+
+            const label = document.createElement('div');
+            label.className = 'hour-mark';
+            label.style.top = (i * 60) + 'px';
+            label.innerText = `${hour12}:${displayMin} ${ampm}`;
+            grid.appendChild(label);
+
+            const line = document.createElement('div');
+            line.className = 'grid-line';
+            line.style.top = (i * 60) + 'px';
+            grid.appendChild(line);
+        }
+
+        // Now Indicator
+        const now = new Date();
+        const curY = getRelativeY(now.getHours() + ":" + now.getMinutes());
+        const nowLine = document.createElement('div');
+        nowLine.className = 'now-indicator';
+        nowLine.style.top = curY + 'px';
+        grid.appendChild(nowLine);
+        document.getElementById('clock').innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        const h_now = now.getHours() + now.getMinutes()/60;
+        const isSleep = (h_now >= 6 && h_now < 13.5);
+        status.innerHTML = isSleep ? 
+            '<span class="status-chip status-sleep">Resting Phase</span>' : 
+            '<span class="status-chip status-work">Active Shift</span>';
+
+        // Render Tasks
+        tasks.forEach((t, i) => {
+            const startY = getRelativeY(t.start);
+            const endY = getRelativeY(t.end);
+            let duration = endY - startY;
+            if (duration < 0) duration += 1440;
+
+            totalMins += duration;
+            if(t.done) doneMins += duration;
+
+            const el = document.createElement('div');
+            el.className = `task ${t.done ? 'done' : ''}`;
+            el.style.top = startY + 'px';
+            el.style.height = Math.max(duration, 50) + 'px';
+            el.style.backgroundColor = t.color + '15';
+            el.style.borderLeft = `4px solid ${t.color}`;
+
+            el.innerHTML = `
+                <div class="task-info">
+                    <b style="color:${t.color}">${t.name}</b>
+                    <span>${t.start} - ${t.end} <i class="duration-tag">${formatDuration(duration)}</i></span>
+                </div>
+                <div style="display:flex; gap:5px; align-items: flex-start;">
+                    <button class="icon-btn" onclick="toggleTask(${i}, event)">${t.done ? 'Undo' : 'Done'}</button>
+                    <button class="icon-btn" onclick="deleteTask(${i}, event)" style="color:var(--red)">✕</button>
+                </div>
+            `;
+            el.onclick = () => toggleTask(i);
+            grid.appendChild(el);
+        });
+
+        // Update Summary Stats
+        document.getElementById('statTotal').innerText = formatDuration(totalMins);
+        document.getElementById('statDone').innerText = formatDuration(doneMins);
+        document.getElementById('statLeft').innerText = formatDuration(totalMins - doneMins);
+    }
+
+    function addTask() {
+        const name = document.getElementById('taskName').value;
+        const start = document.getElementById('startTime').value;
+        const end = document.getElementById('endTime').value;
+        const color = document.getElementById('taskColor').value;
+        if (!name) return;
+        tasks.push({ name, start, end, color, done: false });
+        tasks.sort((a,b) => getRelativeY(a.start) - getRelativeY(b.start));
+        save(); render();
+        document.getElementById('taskName').value = '';
+    }
+
+    function toggleTask(index, e) { if(e) e.stopPropagation(); tasks[index].done = !tasks[index].done; save(); render(); }
+    function deleteTask(index, e) { if(e) e.stopPropagation(); tasks.splice(index, 1); save(); render(); }
+    function scrollToNow() { const now = new Date(); const y = getRelativeY(now.getHours() + ":" + now.getMinutes()); window.scrollTo(0, y); }
+
+    render();
+    setTimeout(scrollToNow, 500);
+    setInterval(render, 30000);
+</script>
+
+</body>
+</html>
